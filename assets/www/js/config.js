@@ -183,6 +183,8 @@
       { key: 'asma', label: 'أسماء الله الحسنى', dhikr: true, icon: 'img/asma.svg', ids: [], names: [] },
       { key: 'gcc', label: 'GCC', ids: ['com.streamvault.app.debug'],
         names: ['^gcc$', '^streamvault'] },
+      { key: 'settings', label: 'الإعدادات', icon: 'img/settings.svg',
+        ids: ['com.android.tv.settings', 'com.amazon.tv.settings.v2', 'com.android.settings'], names: [] },
       { key: 'browser', label: 'Internet', ids: ['com.amazon.cloud9', 'com.android.chrome'],
         names: ['^silk', '^internet$', '^browser$'] }
     ],

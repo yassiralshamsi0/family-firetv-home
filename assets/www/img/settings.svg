@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4b5563"/>
+      <stop offset="1" stop-color="#1f2937"/>
+    </linearGradient>
+  </defs>
+  <rect width="192" height="192" rx="40" fill="url(#g)"/>
+  <!-- A gear: eight teeth drawn as a dashed ring around a solid wheel -->
+  <g transform="translate(96 82)" fill="#e5e7eb">
+    <circle r="46" fill="none" stroke="#e5e7eb" stroke-width="18" stroke-dasharray="18.06 18.06" transform="rotate(-11.25)"/>
+    <circle r="38"/>
+    <circle r="15" fill="#374151"/>
+  </g>
+  <text x="96" y="168" text-anchor="middle" font-family="sans-serif" font-size="24" font-weight="700" fill="#e5e7eb">الإعدادات</text>
+</svg>
