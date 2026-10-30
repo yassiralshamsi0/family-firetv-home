@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1920, height=1080, user-scalable=no">
+<title>Glass Home</title>
+<link rel="stylesheet" href="css/tv.css">
+</head>
+<body>
+<div id="stage">
+  <div id="bg">
+    <div class="bg-layer" id="bg-a"></div>
+    <div class="bg-layer" id="bg-b"></div>
+  </div>
+  <div id="night-shade"></div>
+  <div id="shade-top"></div>
+  <div id="shade-left"></div>
+  <div id="shade-bottom"></div>
+
+  <div id="brand" aria-hidden="true">
+    <img id="brand-glyph" src="img/brand-glyph.svg" alt="">
+    <div id="brand-name">عائلتي</div>
+  </div>
+  <div id="side-left" aria-hidden="true">
+    <div id="weather">
+      <div id="wx-now">
+        <span class="wx-icon" id="wx-now-icon"></span>
+        <span id="wx-now-temp"></span>
+        <span id="wx-now-text"></span>
+      </div>
+      <div id="wx-week">
+        <div id="wx-days"></div>
+        <div id="wx-foot"><span id="wx-place"></span><span>Weather: Open-Meteo</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="uae" dir="rtl" aria-hidden="true"></div>
+  <div id="prayer-alert" dir="rtl" aria-live="polite"></div>
+
+  <div id="clock" aria-hidden="true">
+    <div id="time"></div>
+    <div id="date"></div>
+    <div id="prayer" dir="rtl"></div>
+  </div>
+  <div id="credit"></div>
+
+  <div id="news" dir="rtl" aria-hidden="true">
+    <div id="news-tag">الأخبار</div>
+    <div id="news-viewport"><div id="news-track"></div></div>
+  </div>
+
+  <div id="dock">
+    <div id="dock-viewport"><div id="dock-row"></div></div>
+  </div>
+  <div id="label"></div>
+
+  <div id="menu" role="menu"></div>
+
+  <div id="scrim"></div>
+  <div id="panel" role="dialog" aria-label="Add photos and shortcuts">
+    <div class="panel-title">Add photos and shortcuts</div>
+    <div class="panel-sub">Use a phone or computer on the home Wi-Fi.</div>
+    <div class="panel-grid">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div>
+          <div class="kv-label">Open</div>
+          <div class="kv-value" id="panel-url"></div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div>
+          <div class="kv-label">Sign in with the password</div>
+          <div class="kv-value" id="panel-pw"></div>
+          <div class="kv-note" id="panel-pw-note"></div>
+        </div>
+      </div>
+    </div>
+    <div class="panel-stats" id="panel-stats"></div>
+    <div class="panel-buttons" id="panel-buttons"></div>
+    <div class="panel-diag" id="panel-diag"></div>
+  </div>
+
+  <div id="toast"></div>
+</div>
+<script src="js/firetv.js"></script>
+<script src="js/config.js"></script>
+<script src="js/weather.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/prayer.js"></script>
+<script src="js/ambient.js"></script>
+<script src="js/ytparse.js"></script>
+<script src="js/platform.js"></script>
+<script src="js/data.js"></script>
+<script src="js/news.js"></script>
+<script src="js/uae.js"></script>
+<script src="js/backdrop.js"></script>
+<script src="js/home.js"></script>
+</body>
+</html>

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="watcher_label">عائلتي: زر الهوم</string>
+    <string name="watcher_description">يفتح شاشة عائلتي لما تضغط زر الهوم في الريموت. ما يقرأ محتوى الشاشة؛ يعرف بس إذا شاشة أمازون الرئيسية انفتحت.</string>
+</resources>
