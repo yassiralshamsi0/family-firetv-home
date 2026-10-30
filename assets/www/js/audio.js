@@ -1,11 +1,11 @@
 /*
- * Glass Home - sound: the Quran radio (started and stopped from its dock
- * tile), soft takbirat in the background, and the adhan's opening takbir at
- * each prayer time (called from prayer.js).
+ * Glass Home - sound: the Quran radio and Asma al-Husna, each started and
+ * stopped from its dock tile (or the phone remote), and the adhan's opening
+ * takbir at each prayer time (called from prayer.js).
  *
- * Only one thing is heard at a time: the takbir pauses the radio and the
- * background takbirat, the radio silences the background takbirat, and all of
- * it stops while another app is in front.
+ * Only one thing is heard at a time: the takbir pauses the radio and Asma
+ * al-Husna, the radio and Asma al-Husna take turns, and all of it stops while
+ * another app is in front.
  */
 (function () {
   'use strict';
@@ -13,17 +13,25 @@
   var cfg = (GH.config && GH.config.audio) || {};
   var A = {};
   var listeners = [];
+  var DHIKR_KEY = 'gh.dhikr.on';
 
   // ---------- radio ----------
   var radio = null;
   var radioOn = false;
+  // Asma al-Husna on or off, as the viewer last left it (on at first).
+  var dhikrOn = true;
+  try { dhikrOn = localStorage.getItem(DHIKR_KEY) !== '0'; } catch (e) { /* storage blocked */ }
 
   function notify() {
-    listeners.forEach(function (f) { f(radioOn); });
-    if (window.FireTV && window.FireTV.setRadio) window.FireTV.setRadio(radioOn);   // for the phone remote
+    listeners.forEach(function (f) { f(); });
+    if (window.FireTV && window.FireTV.setRadio) {                            // for the phone remote
+      window.FireTV.setRadio(radioOn);
+      if (window.FireTV.setDhikr) window.FireTV.setDhikr(dhikrOn);
+    }
   }
-  A.onRadio = function (f) { listeners.push(f); };
+  A.onChange = function (f) { listeners.push(f); };
   A.radioOn = function () { return radioOn; };
+  A.dhikrOn = function () { return dhikrOn; };
 
   function startRadio() {
     if (!cfg.radio || !cfg.radio.url) return;
@@ -32,7 +40,7 @@
     radio.onerror = function () { stopRadio(); if (GH.toast) GH.toast('تعذّر تشغيل الإذاعة الآن'); };
     radio.play().catch(function () { stopRadio(); });
     radioOn = true;
-    stopDhikr();
+    stopDhikr();                        // back when the radio stops, if still on
     notify();
   }
 
@@ -75,7 +83,7 @@
 
   // Carries on where it stopped, or starts the next file.
   function playDhikr(next) {
-    if (!dhikr || radioOn || busy || document.hidden) return;
+    if (!dhikr || !dhikrOn || radioOn || busy || document.hidden) return;
     if (next || !dhikr.src) dhikr.src = files[track];
     dhikr.play().catch(function () { scheduleDhikr(60000); });
   }
@@ -84,6 +92,24 @@
     clearTimeout(dhikrTimer);
     if (dhikr) dhikr.pause();
   }
+
+  function setDhikr(on) {
+    dhikrOn = on;
+    try { localStorage.setItem(DHIKR_KEY, on ? '1' : '0'); } catch (e) { /* not kept */ }
+  }
+
+  // Turning Asma al-Husna on stops the radio, like changing station.
+  A.toggleDhikr = function () {
+    setDhikr(!dhikrOn);
+    if (dhikrOn) {
+      if (radioOn) stopRadio();
+      playDhikr();
+    } else {
+      stopDhikr();
+    }
+    notify();
+    return dhikrOn;
+  };
 
   // ---------- adhan takbir ----------
   var adhan = cfg.adhan && cfg.adhan.enabled !== false ? new Audio(cfg.adhan.file) : null;
@@ -134,5 +160,12 @@
   });
 
   scheduleDhikr(3000);
+  setTimeout(function () {
+    // A toggle the phone remote sent while this screen was closed.
+    var p = window.FireTV && window.FireTV.takePending ? window.FireTV.takePending() : '';
+    if (p === 'radio') A.toggleRadio();
+    else if (p === 'dhikr') A.toggleDhikr();
+    notify();                          // the remote learns the starting state
+  }, 0);
   GH.audio = A;
 }());

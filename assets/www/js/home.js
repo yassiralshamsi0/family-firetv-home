@@ -111,11 +111,15 @@
   }
   GH.toast = toast;
 
-  // The radio tile shows whether the radio is playing.
+  // Sound tiles (the radio, Asma al-Husna) show whether they are on.
+  function soundOn(it) {
+    if (!GH.audio) return false;
+    return it.sound === 'radio' ? GH.audio.radioOn() : GH.audio.dhikrOn();
+  }
   if (GH.audio) {
-    GH.audio.onRadio(function (on) {
+    GH.audio.onChange(function () {
       items.forEach(function (it) {
-        if (it.radio && tileEls[it.key]) tileEls[it.key].el.classList.toggle('playing', on);
+        if (it.sound && tileEls[it.key]) tileEls[it.key].el.classList.toggle('playing', soundOn(it));
       });
     });
   }
@@ -180,8 +184,9 @@
   function buildItems() {
     var list = [];
     orderedAppKeys().forEach(function (k) {
-      if (defByKey[k].radio) {
-        list.push({ kind: 'app', key: 'app:' + k, appKey: k, label: defByKey[k].label, radio: true, icon: defByKey[k].icon || null });
+      var sound = defByKey[k].radio ? 'radio' : defByKey[k].dhikr ? 'dhikr' : null;
+      if (sound) {
+        list.push({ kind: 'app', key: 'app:' + k, appKey: k, label: defByKey[k].label, sound: sound, icon: defByKey[k].icon || null });
         return;
       }
       var a = apps[k];
@@ -300,9 +305,9 @@
       } else {
         face.appendChild(div('name-fallback', it.label));
       }
-      if (it.radio) {
+      if (it.sound) {
         face.appendChild(div('radio-state'));
-        if (GH.audio && GH.audio.radioOn()) el.classList.add('playing');
+        if (soundOn(it)) el.classList.add('playing');
       }
     } else if (it.kind === 'web') {
       if (it.icon) {
@@ -386,7 +391,7 @@
   function reportDock() {
     if (!window.FireTV || !window.FireTV.setDock) return;
     window.FireTV.setDock(JSON.stringify(items.filter(function (it) { return it.kind === 'app'; }).map(function (it) {
-      return { label: it.label, id: it.id || null, radio: !!it.radio, icon: it.icon || null };
+      return { label: it.label, id: it.id || null, sound: it.sound || null, icon: it.icon || null };
     })));
   }
 
@@ -473,8 +478,10 @@
   function activate(it) {
     if (!it) return;
     if (it.kind === 'add') { openPanel(); return; }
-    if (it.radio) {
-      if (GH.audio) toast(GH.audio.toggleRadio() ? 'تشغيل ' + it.label : 'إيقاف ' + it.label);
+    if (it.sound) {
+      if (!GH.audio) return;
+      var on = it.sound === 'radio' ? GH.audio.toggleRadio() : GH.audio.toggleDhikr();
+      toast((on ? 'تشغيل ' : 'إيقاف ') + it.label);
       return;
     }
     var p;

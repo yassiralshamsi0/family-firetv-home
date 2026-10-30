@@ -1,9 +1,8 @@
 package com.glasshome.firetv;
 
 import android.app.Activity;
-import android.content.ComponentName;
+import android.content.Context;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
@@ -12,11 +11,8 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
-import android.media.AudioManager;
 import android.net.Uri;
-import android.os.Build;
 import android.os.Bundle;
-import android.provider.Settings;
 import android.util.Base64;
 import android.util.Log;
 import android.view.View;
@@ -37,12 +33,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.security.SecureRandom;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
-import java.util.Map;
 import java.util.Set;
 
 /*
@@ -54,11 +46,6 @@ public class MainActivity extends Activity {
     private static final int ICON_PX = 192;
 
     private WebView web;
-    private RemoteServer remote;
-    private String pin;
-    private volatile boolean shown;           // this screen is in front
-    private volatile String dock = "[]";      // the dock as the page reports it
-    private volatile boolean radioOn;
 
     @Override
     protected void onCreate(Bundle state) {
@@ -94,115 +81,40 @@ public class MainActivity extends Activity {
         setContentView(web);
         web.requestFocus();
 
-        // The phone remote's code: made once, kept for this TV.
-        SharedPreferences prefs = getSharedPreferences("remote", MODE_PRIVATE);
-        pin = prefs.getString("pin", null);
-        if (pin == null) {
-            pin = String.format(Locale.US, "%04d", new SecureRandom().nextInt(10000));
-            prefs.edit().putString("pin", pin).apply();
-        }
-        remote = new RemoteServer(getAssets(), pin, new RemoteActions());
-        remote.start();
+        RemoteService.screen = this;
+        RemoteService.start(this);       // the phone remote; it outlives this screen
     }
 
     @Override
     protected void onDestroy() {
-        if (remote != null) remote.close();
+        if (RemoteService.screen == this) {
+            RemoteService.screen = null;
+            RemoteService.shown = false;
+        }
         super.onDestroy();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        shown = true;
+        RemoteService.shown = true;
         HomeWatcher.allowFireHome = false;
         web.onResume();
     }
 
     @Override
     protected void onPause() {
-        shown = false;
+        RemoteService.shown = false;
         web.onPause();
         super.onPause();
     }
 
-    private void js(final String code) {
+    // Runs page code (from the phone remote's threads too).
+    void js(final String code) {
         web.post(new Runnable() {
             @Override
             public void run() { web.evaluateJavascript(code, null); }
         });
-    }
-
-    // What the phone remote can do (RemoteServer calls these on its threads).
-    private class RemoteActions implements RemoteServer.Actions {
-        private final Map<String, Integer> keys = new HashMap<>();
-
-        RemoteActions() {
-            keys.put("left", 37);
-            keys.put("up", 38);
-            keys.put("right", 39);
-            keys.put("down", 40);
-            keys.put("ok", 13);
-            keys.put("back", 27);
-        }
-
-        @Override
-        public String state(boolean withDock) {
-            AudioManager am = (AudioManager) getSystemService(AUDIO_SERVICE);
-            String name = Settings.Global.getString(getContentResolver(), "device_name");
-            try {
-                JSONObject o = new JSONObject();
-                o.put("ok", true);
-                o.put("name", name != null ? name : Build.MODEL);
-                o.put("shown", shown);
-                o.put("radio", radioOn);
-                o.put("volume", am.getStreamVolume(AudioManager.STREAM_MUSIC));
-                o.put("maxVolume", am.getStreamMaxVolume(AudioManager.STREAM_MUSIC));
-                if (withDock) o.put("dock", new JSONArray(dock));
-                return o.toString();
-            } catch (JSONException e) {
-                return "{\"ok\":false}";
-            }
-        }
-
-        @Override
-        public boolean launch(String pkg) {
-            if (pkg == null) return false;
-            Intent i = launchIntent(pkg);
-            if (HomeWatcher.FIRE_HOME.equals(pkg)) HomeWatcher.allowFireHome = true;
-            return i != null && start(i);
-        }
-
-        @Override
-        public void radio() {
-            if (!shown) home();
-            js("GH.audio&&GH.audio.toggleRadio()");
-        }
-
-        // Keys reach this screen only; other apps don't take keys from apps.
-        @Override
-        public boolean key(String name) {
-            Integer code = keys.get(name);
-            if (code == null || !shown) return false;
-            js("(function(){['keydown','keyup'].forEach(function(t){var e=document.createEvent('Event');"
-                    + "e.initEvent(t,true,true);e.keyCode=" + code + ";e.which=" + code + ";"
-                    + "document.dispatchEvent(e);});})()");
-            return true;
-        }
-
-        @Override
-        public void home() {
-            Intent i = new Intent(MainActivity.this, MainActivity.class);
-            start(i.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT));
-        }
-
-        @Override
-        public void volume(String how) {
-            AudioManager am = (AudioManager) getSystemService(AUDIO_SERVICE);
-            int dir = "up".equals(how) ? AudioManager.ADJUST_RAISE
-                    : "down".equals(how) ? AudioManager.ADJUST_LOWER : AudioManager.ADJUST_TOGGLE_MUTE;
-            am.adjustStreamVolume(AudioManager.STREAM_MUSIC, dir, AudioManager.FLAG_SHOW_UI);
-        }
     }
 
     // Back never reaches the page as a key, so hand it over as Escape, which
@@ -279,10 +191,21 @@ public class MainActivity extends Activity {
 
         // For the phone remote: the dock's tiles, the radio, and where to find it.
         @JavascriptInterface
-        public void setDock(String json) { dock = json; }
+        public void setDock(String json) { RemoteService.setDock(MainActivity.this, json); }
 
         @JavascriptInterface
-        public void setRadio(boolean on) { radioOn = on; }
+        public void setRadio(boolean on) { RemoteService.radioOn = on; }
+
+        @JavascriptInterface
+        public void setDhikr(boolean on) { RemoteService.dhikrOn = on; }
+
+        // A sound toggle the remote asked for while this screen was closed.
+        @JavascriptInterface
+        public String takePending() {
+            String p = RemoteService.pending;
+            RemoteService.pending = null;
+            return p == null ? "" : p;
+        }
 
         @JavascriptInterface
         public String remoteInfo() {
@@ -290,7 +213,7 @@ public class MainActivity extends Activity {
             try {
                 JSONObject o = new JSONObject();
                 o.put("url", ip == null ? "" : ip + ":" + RemoteServer.PORT);
-                o.put("pin", pin);
+                o.put("pin", RemoteService.pin(MainActivity.this));
                 return o.toString();
             } catch (JSONException e) {
                 return "{}";
@@ -311,13 +234,18 @@ public class MainActivity extends Activity {
         }
     }
 
-    private Intent launchIntent(String pkg) {
+    private Intent launchIntent(String pkg) { return launchIntent(this, pkg); }
+
+    private boolean start(Intent i) { return start(this, i); }
+
+    // Also used by RemoteService.
+    static Intent launchIntent(Context c, String pkg) {
+        PackageManager pm = c.getPackageManager();
         // Amazon's home screen has no launcher entry, only the Home one.
         if (HomeWatcher.FIRE_HOME.equals(pkg)) {
             Intent home = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME).setPackage(pkg);
-            return getPackageManager().resolveActivity(home, 0) != null ? home : null;
+            return pm.resolveActivity(home, 0) != null ? home : null;
         }
-        PackageManager pm = getPackageManager();
         Intent i = pm.getLeanbackLaunchIntentForPackage(pkg);
         if (i == null) i = pm.getLaunchIntentForPackage(pkg);
         return i;
@@ -343,10 +271,10 @@ public class MainActivity extends Activity {
         }
     }
 
-    private boolean start(Intent i) {
+    static boolean start(Context c, Intent i) {
         i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         try {
-            startActivity(i);
+            c.startActivity(i);
             return true;
         } catch (RuntimeException e) {
             return false;
