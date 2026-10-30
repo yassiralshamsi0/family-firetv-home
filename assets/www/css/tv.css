@@ -630,6 +630,19 @@ html.lite #uae { -webkit-backdrop-filter: none; backdrop-filter: none; backgroun
 .news-title.new { color: #ff5a5f; font-weight: 600; }
 html.lite #news { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgba(12, 14, 18, 0.8); }
 
+/* ---------- phone remote address (bottom right) ---------- */
+#remote-hint {
+  position: absolute;
+  right: 72px;
+  bottom: 102px;
+  font-size: 19px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.72);
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.6);
+  direction: rtl;
+  unicode-bidi: plaintext;
+}
+
 /* ---------- photo credit ---------- */
 #credit {
   position: absolute;

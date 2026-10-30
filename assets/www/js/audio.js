@@ -18,7 +18,10 @@
   var radio = null;
   var radioOn = false;
 
-  function notify() { listeners.forEach(function (f) { f(radioOn); }); }
+  function notify() {
+    listeners.forEach(function (f) { f(radioOn); });
+    if (window.FireTV && window.FireTV.setRadio) window.FireTV.setRadio(radioOn);   // for the phone remote
+  }
   A.onRadio = function (f) { listeners.push(f); };
   A.radioOn = function () { return radioOn; };
 

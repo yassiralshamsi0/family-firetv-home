@@ -15,6 +15,18 @@
   function later(cb, v) { if (cb) setTimeout(function () { cb(v); }, 0); }
   function error(name, msg) { var e = new Error(msg); e.name = name; return e; }
 
+  // Where the phone remote is (RemoteServer.java), bottom right; the address
+  // can change, so it is checked again now and then.
+  function showRemote() {
+    var box = document.getElementById('remote-hint');
+    if (!box || !B.remoteInfo) return;
+    var r = {};
+    try { r = JSON.parse(B.remoteInfo()); } catch (e) { /* none */ }
+    box.textContent = r.url ? 'ريموت الجوال: http://' + r.url + '  ·  الرمز ' + r.pin : '';
+  }
+  document.addEventListener('DOMContentLoaded', showRemote);
+  setInterval(showRemote, 5 * 60000);
+
   // GHFetch(url) -> Promise of the body (null on failure), fetched natively.
   var pending = {};
   var seq = 0;

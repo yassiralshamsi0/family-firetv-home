@@ -379,6 +379,15 @@
     var idx = -1;
     for (var i = 0; i < items.length; i++) if (items[i].key === wanted) { idx = i; break; }
     setFocus(idx >= 0 ? idx : clamp(focus, 0, items.length - 1), true);
+    reportDock();
+  }
+
+  // The phone remote shows the same tiles (FireTV bridge, Android only).
+  function reportDock() {
+    if (!window.FireTV || !window.FireTV.setDock) return;
+    window.FireTV.setDock(JSON.stringify(items.filter(function (it) { return it.kind === 'app'; }).map(function (it) {
+      return { label: it.label, id: it.id || null, radio: !!it.radio, icon: it.icon || null };
+    })));
   }
 
   function sizeFor(n) {

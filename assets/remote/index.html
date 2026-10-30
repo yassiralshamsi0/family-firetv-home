@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b1220">
+<title>ريموت عائلتي</title>
+<style>
+  :root {
+    --bg: #0b1220;
+    --card: #151e33;
+    --card-2: #1d2843;
+    --line: rgba(255, 255, 255, 0.08);
+    --text: #f4f6fb;
+    --text-2: rgba(244, 246, 251, 0.62);
+    --accent: #8fd8cf;
+    --green: #0f6b4a;
+    --gold: #e9d9a6;
+    --red: #d7262e;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); }
+  body {
+    font-family: -apple-system, "SF Arabic", "Segoe UI", Roboto, "Noto Sans Arabic", Tahoma, sans-serif;
+    padding: max(16px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom));
+    max-width: 480px;
+    margin: 0 auto;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+  h1 { margin: 0; font-size: 22px; font-weight: 700; }
+  .sub { font-size: 13px; color: var(--text-2); margin-top: 2px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: #6b7280; display: inline-block; margin-left: 6px; }
+  .dot.on { background: #34d399; }
+  button {
+    font: inherit;
+    color: inherit;
+    border: 0;
+    background: var(--card);
+    border-radius: 18px;
+    cursor: pointer;
+    transition: transform 0.08s ease, background 0.2s ease;
+  }
+  button:active { transform: scale(0.95); background: var(--card-2); }
+  section { margin-bottom: 18px; }
+  h2 { font-size: 14px; font-weight: 600; color: var(--text-2); margin: 0 0 10px; }
+
+  /* Radio */
+  #radio {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 16px;
+    background: linear-gradient(135deg, var(--green), #06402b);
+    border-radius: 22px;
+    text-align: right;
+  }
+  #radio .ic {
+    flex: none;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.45);
+    box-shadow: 0 0 0 2px var(--gold);
+    position: relative;
+  }
+  #radio .ic::after {
+    content: '';
+    position: absolute;
+    left: 20px;
+    top: 15px;
+    border-style: solid;
+    border-width: 11px 0 11px 17px;
+    border-color: transparent transparent transparent #fff;
+  }
+  #radio.on .ic { background: var(--red); }
+  #radio.on .ic::after { left: 17px; top: 17px; width: 18px; height: 18px; border: 0; border-radius: 3px; background: #fff; }
+  #radio .t { font-size: 18px; font-weight: 700; color: var(--gold); }
+  #radio .s { font-size: 13px; color: rgba(255, 255, 255, 0.75); margin-top: 2px; }
+
+  /* D-pad */
+  .pad {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(3, 72px);
+    gap: 10px;
+  }
+  .pad button { font-size: 26px; }
+  .pad .ok { background: var(--accent); color: #0b1220; font-weight: 800; font-size: 20px; border-radius: 50%; }
+  .pad .empty { visibility: hidden; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+  .row button { height: 54px; font-size: 16px; font-weight: 600; }
+  .note { font-size: 12px; color: var(--text-2); margin-top: 8px; line-height: 1.6; }
+
+  /* Volume */
+  .vol { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+  .vol button { height: 54px; font-size: 22px; }
+
+  /* Apps */
+  .apps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .app { padding: 12px 6px 10px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .app img { width: 56px; height: 56px; border-radius: 14px; object-fit: cover; }
+  .app .ph {
+    width: 56px; height: 56px; border-radius: 14px; background: var(--card-2);
+    display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 20px;
+  }
+  .app span { font-size: 13px; line-height: 1.3; text-align: center; }
+
+  /* Code */
+  #login { display: none; text-align: center; padding: 40px 8px; }
+  #login.on { display: block; }
+  #login p { color: var(--text-2); line-height: 1.7; }
+  #pin {
+    font: inherit; font-size: 34px; letter-spacing: 14px; text-align: center; direction: ltr;
+    width: 220px; padding: 12px; border-radius: 16px; border: 1px solid var(--line);
+    background: var(--card); color: var(--text); margin: 12px 0 16px;
+  }
+  #go { padding: 14px 40px; font-size: 18px; font-weight: 700; background: var(--accent); color: #0b1220; }
+  #main.off { display: none; }
+  #toast {
+    position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%) translateY(20px);
+    background: #000; color: #fff; padding: 10px 18px; border-radius: 14px; font-size: 14px;
+    opacity: 0; transition: opacity 0.2s, transform 0.2s; pointer-events: none;
+  }
+  #toast.on { opacity: 0.92; transform: translateX(-50%); }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>ريموت عائلتي</h1>
+    <div class="sub"><span class="dot" id="dot"></span><span id="tv">جارٍ الاتصال…</span></div>
+  </div>
+</header>
+
+<div id="login">
+  <p>اكتب الرمز الظاهر أسفل شاشة التلفزيون<br>(ريموت الجوال … الرمز)</p>
+  <input id="pin" inputmode="numeric" maxlength="4" autocomplete="off">
+  <div><button id="go">دخول</button></div>
+</div>
+
+<div id="main" class="off">
+  <section>
+    <button id="radio">
+      <span class="ic"></span>
+      <span><div class="t">إذاعة القرآن الكريم</div><div class="s" id="radio-s">الشارقة · اضغط للتشغيل</div></span>
+    </button>
+  </section>
+
+  <section>
+    <h2>التنقّل في شاشة عائلتي</h2>
+    <div class="pad">
+      <button class="empty"></button>
+      <button data-k="up" aria-label="أعلى">▲</button>
+      <button class="empty"></button>
+      <button data-k="right" aria-label="يمين">▶</button>
+      <button data-k="ok" class="ok">OK</button>
+      <button data-k="left" aria-label="يسار">◀</button>
+      <button class="empty"></button>
+      <button data-k="down" aria-label="أسفل">▼</button>
+      <button class="empty"></button>
+    </div>
+    <div class="row">
+      <button id="home">🏠 عائلتي</button>
+      <button data-k="back">↩ رجوع</button>
+    </div>
+    <div class="note">الأسهم تشتغل في شاشة «عائلتي» فقط. داخل Netflix وYouTube استخدم ريموت التلفزيون.</div>
+  </section>
+
+  <section>
+    <h2>الصوت</h2>
+    <div class="vol">
+      <button data-v="down" aria-label="خفض">－</button>
+      <button data-v="mute" aria-label="كتم">🔇</button>
+      <button data-v="up" aria-label="رفع">＋</button>
+    </div>
+  </section>
+
+  <section>
+    <h2>التطبيقات</h2>
+    <div class="apps" id="apps"></div>
+  </section>
+</div>
+
+<div id="toast"></div>
+
+<script>
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+  var KEY = 'remote.pin';
+  var pin = '';
+  try { pin = localStorage.getItem(KEY) || ''; } catch (e) { /* private mode */ }
+  var toastTimer = null;
+
+  function toast(t) {
+    var el = $('toast');
+    el.textContent = t;
+    el.classList.add('on');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { el.classList.remove('on'); }, 1800);
+  }
+
+  function api(path, params, post) {
+    var q = 'pin=' + encodeURIComponent(pin);
+    Object.keys(params || {}).forEach(function (k) { q += '&' + k + '=' + encodeURIComponent(params[k]); });
+    return fetch('/api/' + path + '?' + q, { method: post ? 'POST' : 'GET', cache: 'no-store' }).then(function (r) {
+      if (r.status === 401) { askPin(); throw new Error('pin'); }
+      return r.json();
+    });
+  }
+
+  function askPin() {
+    $('main').classList.add('off');
+    $('login').classList.add('on');
+    $('pin').value = '';
+    $('pin').focus();
+  }
+
+  function setState(s) {
+    $('dot').classList.add('on');
+    $('tv').textContent = (s.name || 'التلفزيون') + (s.shown ? ' · شاشة عائلتي ظاهرة' : ' · تطبيق آخر مفتوح');
+    $('radio').classList.toggle('on', !!s.radio);
+    $('radio-s').textContent = s.radio ? 'الشارقة · تعمل الآن، اضغط للإيقاف' : 'الشارقة · اضغط للتشغيل';
+  }
+
+  function icon(src) {
+    if (!src) return null;
+    if (/^data:/.test(src)) return src;
+    return '/www/' + src.replace(/^\/+/, '');
+  }
+
+  function renderApps(dock) {
+    var box = $('apps');
+    box.textContent = '';
+    (dock || []).filter(function (a) { return !a.radio && a.id; }).forEach(function (a) {
+      var b = document.createElement('button');
+      b.className = 'app';
+      var src = icon(a.icon);
+      if (src) {
+        var img = new Image();
+        img.alt = '';
+        img.src = src;
+        b.appendChild(img);
+      } else {
+        var ph = document.createElement('div');
+        ph.className = 'ph';
+        ph.textContent = (a.label || '?').trim().charAt(0);
+        b.appendChild(ph);
+      }
+      var name = document.createElement('span');
+      name.textContent = a.label;
+      b.appendChild(name);
+      b.onclick = function () {
+        api('launch', { id: a.id }, true).then(function (r) { toast(r.ok ? 'فتح ' + a.label : 'تعذّر فتح ' + a.label); });
+      };
+      box.appendChild(b);
+    });
+  }
+
+  function start() {
+    api('state').then(function (s) {
+      $('login').classList.remove('on');
+      $('main').classList.remove('off');
+      setState(s);
+      renderApps(s.dock);
+    }).catch(function (e) {
+      if (e.message !== 'pin') { $('dot').classList.remove('on'); $('tv').textContent = 'لا يوجد اتصال بالتلفزيون'; }
+    });
+  }
+
+  function poll() {
+    if (document.hidden || $('main').classList.contains('off')) return;
+    api('state', { lite: 1 }).then(setState).catch(function () {
+      $('dot').classList.remove('on');
+      $('tv').textContent = 'انقطع الاتصال بالتلفزيون';
+    });
+  }
+
+  $('go').onclick = function () {
+    var v = $('pin').value.replace(/\D/g, '');
+    if (v.length !== 4) { toast('الرمز ٤ أرقام'); return; }
+    pin = v;
+    try { localStorage.setItem(KEY, pin); } catch (e) { /* not kept */ }
+    start();
+  };
+  $('pin').addEventListener('keydown', function (e) { if (e.key === 'Enter') $('go').click(); });
+
+  $('radio').onclick = function () {
+    api('radio', {}, true).then(function () { setTimeout(poll, 800); });
+  };
+  $('home').onclick = function () { api('home', {}, true).then(function () { toast('عائلتي'); setTimeout(poll, 800); }); };
+
+  Array.prototype.forEach.call(document.querySelectorAll('[data-k]'), function (b) {
+    b.onclick = function () {
+      api('key', { k: b.getAttribute('data-k') }, true).then(function (r) {
+        if (!r.ok) toast('افتح شاشة عائلتي أولًا');
+      });
+    };
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('[data-v]'), function (b) {
+    b.onclick = function () { api('volume', { d: b.getAttribute('data-v') }, true); };
+  });
+
+  if (pin) start(); else askPin();
+  setInterval(poll, 3000);
+  document.addEventListener('visibilitychange', poll);
+}());
+</script>
+</body>
+</html>
