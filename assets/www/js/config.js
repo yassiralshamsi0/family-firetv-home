@@ -174,6 +174,9 @@
         names: ['^youtube$'] },
       { key: 'netflix', label: 'Netflix', ids: ['com.netflix.ninja', 'com.netflix.mediaclient'],
         names: ['^netflix$', '\\bnetflix\\b'] },
+      { key: 'aroma', label: 'AROMA', ids: ['com.mbm_soft.aromapro', 'com.aromatvprotwo.aromatvproiptvbox'],
+        names: ['^aroma'] },
+      { key: 'iptv', label: 'IPTV', ids: ['com.nst.iptvsmarterstvbox'], names: ['^iptv smarters'] },
       // Not an app: OK starts and stops the radio stream in `audio.radio`.
       { key: 'quran', label: 'إذاعة القرآن الكريم', radio: true, icon: 'img/quran-radio.svg', ids: [], names: [] },
       // Not an app either: OK turns Asma al-Husna (`audio.dhikr`) on and off.
