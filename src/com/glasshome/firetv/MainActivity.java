@@ -100,6 +100,14 @@ public class MainActivity extends Activity {
         RemoteService.shown = true;
         HomeWatcher.allowFireHome = false;
         web.onResume();
+        // Google TV (Android 11) brings this screen back as a translucent home
+        // task after the Home button, so the app it covers stays visible
+        // behind it. Mark it opaque again (Activity.setTranslucent, API 30).
+        if (android.os.Build.VERSION.SDK_INT >= 30) {
+            try {
+                Activity.class.getMethod("setTranslucent", boolean.class).invoke(this, false);
+            } catch (Exception e) { }
+        }
     }
 
     @Override
