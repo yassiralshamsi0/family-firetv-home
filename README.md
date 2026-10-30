@@ -33,6 +33,23 @@ adb connect <عنوان-التلفزيون>:5555
 adb install -r GlassHome.apk
 ```
 
+### زر الهوم على Google TV (مثل Xiaomi Mi TV Stick)
+
+Google TV يتجاهل اختيار واجهة أخرى، فلكي يفتح زر الهوم «عائلتي» تُعطَّل واجهته وشاشة استعادة الإعداد
+(تعطيل فقط، بدون حذف):
+
+```
+adb shell pm disable-user --user 0 com.google.android.apps.tv.launcherx
+adb shell pm disable-user --user 0 com.google.android.tungsten.setupwraith
+```
+
+للرجوع إلى واجهة Google TV:
+
+```
+adb shell pm enable com.google.android.apps.tv.launcherx
+adb shell pm enable com.google.android.tungsten.setupwraith
+```
+
 ## البناء من المصدر (Windows)
 
 يحتاج JDK 17 وAndroid SDK (build-tools 34.0.0 وplatform android-34) في
