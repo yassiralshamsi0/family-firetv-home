@@ -386,7 +386,9 @@ html.lite .pr-card {
 .uae-flag {
   height: 7px;
   margin: 0 -26px;
-  background: linear-gradient(to left, #ce1126 0 22%, #00732f 22% 48%, #ffffff 48% 74%, #000000 74% 100%);
+  /* One stop per position: older WebViews (Chrome 66) don't read two. */
+  background: linear-gradient(to left, #ce1126 0, #ce1126 22%, #00732f 22%, #00732f 48%,
+    #ffffff 48%, #ffffff 74%, #000000 74%, #000000 100%);
 }
 .uae-title {
   margin-top: 16px;

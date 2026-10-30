@@ -167,15 +167,18 @@
       // Amazon's own home screen. With the Home-button watcher on, this is
       // the way to reach it (MainActivity lets it through once).
       { key: 'firehome', label: 'Fire TV', ids: ['com.amazon.tv.launcher'], names: [], icon: false },
+      // Other Android TVs: their own home screen and live channels.
+      { key: 'tvhome', label: 'شاشة التلفزيون', ids: ['com.zeasn.oriontv.open.launcher'], names: [], icon: false },
+      { key: 'livetv', label: 'القنوات', ids: ['com.android.tv'], names: [] },
       { key: 'youtube', label: 'YouTube', ids: ['com.amazon.firetv.youtube', 'com.google.android.youtube.tv'],
         names: ['^youtube$'] },
-      { key: 'netflix', label: 'Netflix', ids: ['com.netflix.ninja'],
+      { key: 'netflix', label: 'Netflix', ids: ['com.netflix.ninja', 'com.netflix.mediaclient'],
         names: ['^netflix$', '\\bnetflix\\b'] },
       // Not an app: OK starts and stops the radio stream in `audio.radio`.
       { key: 'quran', label: 'إذاعة القرآن الكريم', radio: true, icon: 'img/quran-radio.svg', ids: [], names: [] },
       { key: 'gcc', label: 'GCC', ids: ['com.streamvault.app.debug'],
         names: ['^gcc$', '^streamvault'] },
-      { key: 'browser', label: 'Internet', ids: ['com.amazon.cloud9'],
+      { key: 'browser', label: 'Internet', ids: ['com.amazon.cloud9', 'com.android.chrome'],
         names: ['^silk', '^internet$', '^browser$'] }
     ],
 
