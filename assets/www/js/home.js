@@ -1325,6 +1325,8 @@
 
   function init() {
     if (Q.still === '1') document.documentElement.classList.add('still');
+    // config.lite: slow TVs. No blur behind the panels and the photos stay still.
+    if (cfg.lite) document.documentElement.classList.add('lite');
     fitStage();
     window.addEventListener('resize', fitStage);
     renderClock();
@@ -1339,7 +1341,7 @@
 
     backdrop = new GH.Backdrop($('bg-a'), $('bg-b'), {
       interval: cfg.photoIntervalMs, fade: cfg.fadeMs, scale: cfg.kenBurnsScale,
-      still: Q.still === '1', onShow: showCredit
+      still: Q.still === '1' || !!cfg.lite, onShow: showCredit
     });
     loadManifest().then(function () {
       updatePhotos();

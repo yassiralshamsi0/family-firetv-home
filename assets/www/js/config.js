@@ -48,6 +48,9 @@
     fadeMs: 1600,
     kenBurnsScale: 1.06,
     clockEveryMs: 1000,          // the clock shows seconds
+    // Slow TVs (the Xiaomi stick ran its processor flat out and froze): no blur
+    // behind the panels, photos without the slow zoom.
+    lite: true,
     pollEveryMs: 20000,
     longPressMs: 700,
     // Date and time format, e.g. 'en-AU', 'en-GB', 'en-US'. Empty: the TV's own.

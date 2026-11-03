@@ -167,7 +167,7 @@
       <button data-k="menu">☰ قائمة</button>
       <button data-k="back">↩ رجوع</button>
     </div>
-    <div class="note">الأسهم تشتغل في شاشة «عائلتي» فقط. داخل Netflix وYouTube استخدم ريموت التلفزيون.</div>
+    <div class="note">الأسهم والرجوع تشتغل في كل التطبيقات. أول مرة داخل تطبيق آخر يسأل التلفزيون «السماح بتصحيح الأخطاء؟»: اختر «السماح دائمًا» ثم موافق.</div>
   </section>
 
   <section>
@@ -304,7 +304,7 @@
   Array.prototype.forEach.call(document.querySelectorAll('[data-k]'), function (b) {
     b.onclick = function () {
       api('key', { k: b.getAttribute('data-k') }, true).then(function (r) {
-        if (!r.ok) toast('افتح شاشة عائلتي أولًا');
+        if (!r.ok) toast('تعذّر إرسال الزر');
       });
     };
   });

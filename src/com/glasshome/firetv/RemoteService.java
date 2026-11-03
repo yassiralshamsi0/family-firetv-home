@@ -40,6 +40,7 @@ public class RemoteService extends Service {
 
     private RemoteServer server;
     private MedicineReminder medicine;
+    private AdbKeys adbKeys;
 
     static void start(Context c) {
         Intent i = new Intent(c, RemoteService.class);
@@ -67,6 +68,7 @@ public class RemoteService extends Service {
     public void onCreate() {
         super.onCreate();
         startForeground(1, notification());
+        adbKeys = new AdbKeys(this);
         server = new RemoteServer(getAssets(), pin(this), new Actions());
         server.start();
         medicine = new MedicineReminder(this);
@@ -82,6 +84,7 @@ public class RemoteService extends Service {
     public void onDestroy() {
         if (server != null) server.close();
         if (medicine != null) medicine.stop();
+        if (adbKeys != null) adbKeys.stop();
         super.onDestroy();
     }
 
@@ -126,8 +129,16 @@ public class RemoteService extends Service {
 
     private class Actions implements RemoteServer.Actions {
         private final Map<String, Integer> keys = new HashMap<>();
+        private final Map<String, Integer> tvKeys = new HashMap<>();   // Android key codes
 
         Actions() {
+            tvKeys.put("left", 21);
+            tvKeys.put("up", 19);
+            tvKeys.put("right", 22);
+            tvKeys.put("down", 20);
+            tvKeys.put("ok", 23);
+            tvKeys.put("back", 4);
+            tvKeys.put("menu", 82);
             keys.put("left", 37);
             keys.put("up", 38);
             keys.put("right", 39);
@@ -170,12 +181,19 @@ public class RemoteService extends Service {
         @Override
         public void radio() { onScreen("radio", "GH.audio&&GH.audio.toggleRadio()"); }
 
-        // Keys reach the home screen only; other apps don't take keys from apps.
+        // On the home screen the page takes the key directly; any other app
+        // gets it as a real key press through the TV's adb (AdbKeys).
         @Override
         public boolean key(String name) {
             Integer code = keys.get(name);
             MainActivity s = screen;
-            if (code == null || s == null || !shown) return false;
+            if (code == null) return false;
+            if (s == null || !shown) {
+                Integer tv = tvKeys.get(name);
+                if (tv == null) return false;
+                adbKeys.send(tv);
+                return true;
+            }
             s.js("(function(){['keydown','keyup'].forEach(function(t){var e=document.createEvent('Event');"
                     + "e.initEvent(t,true,true);e.keyCode=" + code + ";e.which=" + code + ";"
                     + "document.dispatchEvent(e);});})()");

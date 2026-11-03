@@ -1428,6 +1428,22 @@ html.lite #news { -webkit-backdrop-filter: none; backdrop-filter: none; backgrou
   border-color: rgba(255, 180, 220, 0.30);
 }
 
+/* Lite: the blur behind every panel is the heaviest thing on screen; drop it
+   and make the tints a little stronger so text stays readable. */
+html.lite #wx-week, html.lite #prayer-table .pr-card, html.lite #uae, html.lite #clock-box,
+html.lite #medicine, html.lite #dock, html.lite #news, html.lite #folder-view, html.lite #menu {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+html.lite #wx-week { background: linear-gradient(165deg, rgba(46, 104, 178, 0.72), rgba(18, 44, 92, 0.80)); }
+html.lite #prayer-table .pr-card { background: linear-gradient(165deg, rgba(34, 128, 92, 0.72), rgba(10, 58, 42, 0.80)); }
+html.lite #uae { background: linear-gradient(165deg, rgba(150, 112, 48, 0.72), rgba(70, 48, 18, 0.80)); }
+html.lite #clock-box { background: linear-gradient(165deg, rgba(104, 78, 170, 0.72), rgba(44, 30, 92, 0.80)); }
+html.lite #medicine { background: linear-gradient(165deg, rgba(160, 64, 118, 0.72), rgba(72, 24, 58, 0.80)); }
+html.lite #dock { background: rgba(28, 28, 30, 0.62); }
+/* The faded ends of the news ticker repaint the whole strip every frame. */
+html.lite #news-viewport { -webkit-mask-image: none; mask-image: none; }
+
 /* ---------- states ---------- */
 html.paused *, html.paused *::before, html.paused *::after { animation-play-state: paused !important; }
 html.still *, html.still *::before, html.still *::after { transition: none !important; animation: none !important; }
