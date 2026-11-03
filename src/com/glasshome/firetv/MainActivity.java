@@ -15,6 +15,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.util.Base64;
 import android.util.Log;
+import android.view.KeyEvent;
 import android.view.View;
 import android.view.WindowManager;
 import android.webkit.ConsoleMessage;
@@ -125,6 +126,51 @@ public class MainActivity extends Activity {
         });
     }
 
+    // OK and the menu key are read here, not by the WebView: Android keeps a
+    // held OK and the menu key to itself, so the page never saw a long press.
+    // A short OK reaches the page as Enter; holding it (or the menu key)
+    // reaches it as key 93, which opens the dock menu. While the folder-name
+    // field is open the page asks for the keys as they are (setRawKeys), so
+    // the TV's keyboard opens and types normally.
+    private static final long LONG_PRESS_MS = 600;
+    private volatile boolean rawKeys;
+    private boolean okDown;
+    private boolean okLong;
+
+    @Override
+    public boolean dispatchKeyEvent(KeyEvent e) {
+        int code = e.getKeyCode();
+        boolean ok = code == KeyEvent.KEYCODE_DPAD_CENTER || code == KeyEvent.KEYCODE_ENTER;
+        if (rawKeys || (!ok && code != KeyEvent.KEYCODE_MENU)) return super.dispatchKeyEvent(e);
+        if (code == KeyEvent.KEYCODE_MENU) {
+            if (e.getAction() == KeyEvent.ACTION_DOWN && e.getRepeatCount() == 0) pageKey(93, false);
+            return true;
+        }
+        if (e.getAction() == KeyEvent.ACTION_DOWN) {
+            if (e.getRepeatCount() == 0) {
+                okDown = true;
+                okLong = false;
+            } else if (okDown && !okLong && (e.isLongPress() || e.getEventTime() - e.getDownTime() >= LONG_PRESS_MS)) {
+                okLong = true;
+                pageKey(93, false);
+            }
+            return true;
+        }
+        if (e.getAction() == KeyEvent.ACTION_UP) {
+            if (okDown && !okLong && !e.isCanceled()) pageKey(13, true);
+            okDown = false;
+            return true;
+        }
+        return true;
+    }
+
+    // A key press for the page, as the phone remote sends it.
+    private void pageKey(int keyCode, boolean withUp) {
+        web.evaluateJavascript("(function(){" + (withUp ? "['keydown','keyup']" : "['keydown']")
+                + ".forEach(function(t){var e=document.createEvent('Event');e.initEvent(t,true,true);"
+                + "e.keyCode=" + keyCode + ";e.which=" + keyCode + ";document.dispatchEvent(e);});})()", null);
+    }
+
     // Back never reaches the page as a key, so hand it over as Escape, which
     // closes the menu. At the top level the page ignores it, like on the TV.
     @Override
@@ -204,8 +250,16 @@ public class MainActivity extends Activity {
         @JavascriptInterface
         public void setRadio(boolean on) { RemoteService.radioOn = on; }
 
+        // The folder-name field wants the keys untouched (see dispatchKeyEvent).
         @JavascriptInterface
-        public void setDhikr(boolean on) { RemoteService.dhikrOn = on; }
+        public void setRawKeys(boolean on) { rawKeys = on; okDown = false; }
+
+        // Opens Android's own "uninstall this app?" window; nothing goes without its OK.
+        @JavascriptInterface
+        public boolean uninstall(String pkg) {
+            if (pkg == null || pkg.isEmpty() || pkg.equals(getPackageName())) return false;
+            return start(new Intent(Intent.ACTION_DELETE, Uri.parse("package:" + pkg)));
+        }
 
         // A sound toggle the remote asked for while this screen was closed.
         @JavascriptInterface

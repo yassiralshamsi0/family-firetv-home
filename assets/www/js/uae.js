@@ -5,8 +5,11 @@
  *
  * Gregorian days are fixed. Islamic ones are found with the Umm al-Qura
  * calendar the browser knows (Intl), so they can be a day off the moon
- * sighting; they are marked as approximate. Headlines come from Google News
- * (config.js `uae.newsUrl`) every 15 minutes and are inserted as text.
+ * sighting; they are marked as approximate. Everything is worked out afresh each
+ * day, so the list never runs out. Headlines come from Google News (config.js
+ * `uae.newsUrl`) every 15 minutes, and the latest holiday news (`uae.holidayUrl`)
+ * every hour, since the real dates are announced only after the moon sighting.
+ * All of it is inserted as text.
  */
 (function () {
   'use strict';
@@ -16,15 +19,20 @@
   if (!cfg || !root || cfg.enabled === false) return;
 
   var NEWS_KEY = 'gh.uae.news.v1';
+  var NOTICE_KEY = 'gh.uae.notice.v3';
+  var NOTICE_DAYS = 7;
+  var NOTICE_AHEAD = 45;               // days ahead an announcement can be about
   var DAY = 86400000;
 
   // [month, day, name, official holiday]
   var GREGORIAN = [
     [1, 1, 'رأس السنة الميلادية', true],
+    [1, 7, 'يوم زايد المؤسس', false],
     [3, 15, 'يوم الطفل الإماراتي', false],
+    [3, 21, 'عيد الأم', false],
     [8, 28, 'يوم المرأة الإماراتية', false],
     [11, 3, 'يوم العلم', false],
-    [11, 30, 'يوم الشهيد', true],
+    [11, 30, 'يوم الشهيد', false],
     [12, 2, null, true]                    // National Day, named by year below
   ];
   var HIJRI = [
@@ -95,6 +103,8 @@
   var list = el('div', 'uae-list');
   root.appendChild(nextBox);
   root.appendChild(list);
+  var notice = el('div', 'uae-notice');
+  root.appendChild(notice);
   var newsBox = el('div', 'uae-news');
   var newsHead = el('div', 'uae-news-head', 'أخبار الإمارات');
   var newsText = el('div', 'uae-news-text');
@@ -172,21 +182,59 @@
     });
   }
 
+  // ---------- holiday news ----------
+  function showNotice() {
+    var n = GH.ls.get(NOTICE_KEY);
+    var fresh = n && Date.now() - n.time < NOTICE_DAYS * DAY;
+    notice.textContent = fresh ? n.title : '';
+    notice.classList.toggle('on', !!fresh);
+  }
+
+  // The newest headline announcing a day off for an occasion that is coming up,
+  // not one that merely mentions a weekend or re-dates last season's holiday.
+  function loadNotice() {
+    if (!window.GHFetch || !cfg.holidayUrl) return;
+    window.GHFetch(cfg.holidayUrl).then(function (text) {
+      if (!text) return;
+      var items = new DOMParser().parseFromString(text, 'text/xml').getElementsByTagName('item');
+      var now = new Date();
+      var soon = occasions(new Date(now.getFullYear(), now.getMonth(), now.getDate()))
+        .filter(function (o) { return o.days <= NOTICE_AHEAD; })
+        .map(function (o) { return o.name.replace(/\s*الـ\d+/, ''); });
+      var best = null;
+      for (var i = 0; i < items.length; i++) {
+        var t = items[i].getElementsByTagName('title')[0];
+        var d = items[i].getElementsByTagName('pubDate')[0];
+        var title = t ? split(t.textContent.trim()).title : '';
+        var time = d ? Date.parse(d.textContent) : NaN;
+        if (isNaN(time) || !/إجازة|عطلة/.test(title) || !/الإمارات|الاتحادية/.test(title)) continue;
+        if (title.indexOf('؟') >= 0 || !/القطاع|الموارد البشرية|مجلس الوزراء|(إجازة|عطلة) رسمية/.test(title)) continue;
+        if (!soon.some(function (s) { return title.indexOf(s) >= 0; })) continue;
+        if (!best || time > best.time) best = { title: title, time: time };
+      }
+      if (best) GH.ls.set(NOTICE_KEY, best);
+      showNotice();
+    });
+  }
+
   headlines = GH.ls.get(NEWS_KEY) || [];
   renderOccasions();
   showNext();
   loadNews();
+  showNotice();
+  loadNotice();
 
   var timers = [];
   function start() {
     timers.push(setInterval(renderOccasions, 60000));
     timers.push(setInterval(showNext, cfg.rotateMs || 10000));
     timers.push(setInterval(loadNews, cfg.refreshMs || 900000));
+    timers.push(setInterval(loadNotice, cfg.holidayRefreshMs || 3600000));
   }
   start();
   document.addEventListener('visibilitychange', function () {
     timers.forEach(clearInterval);
     timers = [];
-    if (!document.hidden) { renderOccasions(); loadNews(); start(); }
+    if (!document.hidden) { renderOccasions(); loadNews(); loadNotice(); start(); }
   });
 }());

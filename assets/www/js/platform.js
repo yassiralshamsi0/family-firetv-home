@@ -83,6 +83,14 @@
     });
   };
 
+  // Every app installed, as [{ id, name, ... }]; [] when it can't be listed.
+  P.listApps = function () {
+    if (!tz) return Promise.resolve((window.GH_MOCK && window.GH_MOCK.apps) || []);
+    return new Promise(function (resolve) {
+      try { tz.application.getAppsInfo(resolve, function () { resolve([]); }); } catch (e) { resolve([]); }
+    });
+  };
+
   P.iconUrl = function (iconPath) {
     if (!iconPath) return null;
     var s = String(iconPath);

@@ -26,7 +26,7 @@ import java.util.Map;
  * some TVs close the home screen's process when another app opens, so the
  * server lives in this foreground service instead of the activity.
  *
- * The screen reports what the remote shows (dock, radio, Asma al-Husna) into
+ * The screen reports what the remote shows (dock, radio) into
  * the static fields below. Sound and key actions need the screen: when it is
  * closed, the action waits in `pending` and the screen picks it up on start.
  */
@@ -36,10 +36,10 @@ public class RemoteService extends Service {
     static volatile MainActivity screen;      // the home screen, while it exists
     static volatile boolean shown;            // ...and is in front
     static volatile boolean radioOn;
-    static volatile boolean dhikrOn = true;
-    static volatile String pending;           // "radio" or "dhikr", for a closed screen
+    static volatile String pending;           // "radio", for a closed screen
 
     private RemoteServer server;
+    private MedicineReminder medicine;
 
     static void start(Context c) {
         Intent i = new Intent(c, RemoteService.class);
@@ -69,6 +69,8 @@ public class RemoteService extends Service {
         startForeground(1, notification());
         server = new RemoteServer(getAssets(), pin(this), new Actions());
         server.start();
+        medicine = new MedicineReminder(this);
+        medicine.start();
     }
 
     @Override
@@ -79,6 +81,7 @@ public class RemoteService extends Service {
     @Override
     public void onDestroy() {
         if (server != null) server.close();
+        if (medicine != null) medicine.stop();
         super.onDestroy();
     }
 
@@ -131,6 +134,7 @@ public class RemoteService extends Service {
             keys.put("down", 40);
             keys.put("ok", 13);
             keys.put("back", 27);
+            keys.put("menu", 93);              // the dock menu, as the TV remote's menu key
         }
 
         @Override
@@ -143,7 +147,6 @@ public class RemoteService extends Service {
                 o.put("name", name != null ? name : Build.MODEL);
                 o.put("shown", shown);
                 o.put("radio", radioOn);
-                o.put("dhikr", dhikrOn);
                 o.put("volume", am.getStreamVolume(AudioManager.STREAM_MUSIC));
                 o.put("maxVolume", am.getStreamMaxVolume(AudioManager.STREAM_MUSIC));
                 if (withDock) {
@@ -166,9 +169,6 @@ public class RemoteService extends Service {
 
         @Override
         public void radio() { onScreen("radio", "GH.audio&&GH.audio.toggleRadio()"); }
-
-        @Override
-        public void dhikr() { onScreen("dhikr", "GH.audio&&GH.audio.toggleDhikr()"); }
 
         // Keys reach the home screen only; other apps don't take keys from apps.
         @Override

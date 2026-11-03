@@ -1,3 +1,6 @@
 build/
 *.keystore
 *.idsig
+# Personal: the medicine schedule, and the built app that carries it
+assets/www/medicine.json
+GlassHome.apk

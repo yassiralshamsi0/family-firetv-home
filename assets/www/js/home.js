@@ -24,11 +24,12 @@
   var PADX = 28;                     // visual glass padding left/right
   var PADY = 26;
   var EDGE = 16;                     // room inside the clip for the enlarged tile
-  var MAX_ROW = 1920 - 2 * (92 + PADX);
-  var DOCK_BOTTOM = 200;             // matches #dock in tv.css
+  var MAX_ROW = 1920 - 2 * (160 + PADX + EDGE);   // the dock ends left of the QR code (starts 1764)
+  var DOCK_BOTTOM = 155;             // matches #dock in tv.css
   var TILE = TILE_MAX;
   var GAP = 28;
-  var KEY = { LEFT: 37, UP: 38, RIGHT: 39, DOWN: 40, ENTER: 13, BACK: 10009, ESC: 27, BACKSPACE: 8 };
+  // MENU: the remote's ☰ key (Android's KEYCODE_MENU reaches the page as 93), or the phone remote's.
+  var KEY = { LEFT: 37, UP: 38, RIGHT: 39, DOWN: 40, ENTER: 13, BACK: 10009, ESC: 27, BACKSPACE: 8, MENU: 93 };
   var YT_MODES = ['payload', 'uri', 'both'];
   var YT_MODE_NAMES = { payload: 'Smart Hub payload', uri: 'watch URL', both: 'payload + URL' };
 
@@ -45,9 +46,33 @@
   var photoService = cfg.photoService !== false && Q.photoService !== '0';
   var smartHubLaunch = cfg.smartHubLaunch === true;
 
-  var defs = cfg.apps;
+  // config.js apps, then apps installed later (autoapps.js), which keep their
+  // place in the dock order like any other.
+  var defs = cfg.apps.slice();
   var defByKey = {};
+  function addDef(d) { if (!defByKey[d.key]) { defs.push(d); defByKey[d.key] = d; } }
   defs.forEach(function (d) { defByKey[d.key] = d; });
+  var autoState = ls.get('gh.autoApps.v1') || null;
+  if (autoState && autoState.auto) autoState.auto.forEach(addDef);
+  // Always on the dock: no remove or uninstall for these.
+  var FIXED = ['settings', 'files', 'play'];
+  // Tiles taken off the dock with long-press OK; brought back from the same menu.
+  var removed = (ls.get('gh.removed') || []).filter(function (k) { return FIXED.indexOf(k) < 0; });
+  // Folders [{ id, name, color, apps: [appKey] }]; each is a dock entry 'folder:<id>'
+  // that keeps its place in the order like an app.
+  var FOLDER_COLORS = ['#2f6fd6', '#1f9d6b', '#7b55d4', '#d24c8f', '#e07a2e', '#ce1126', '#b08a3e', '#5f6b7a'];
+  var folders = ls.get('gh.folders.v1') || [];
+  function folderDef(f) { return { key: 'folder:' + f.id, folder: f.id, label: f.name, ids: [], names: [] }; }
+  folders.forEach(function (f) { addDef(folderDef(f)); });
+  function folderById(id) {
+    for (var i = 0; i < folders.length; i++) if (folders[i].id === id) return folders[i];
+    return null;
+  }
+  function folderOf(appKey) {
+    for (var i = 0; i < folders.length; i++) if (folders[i].apps.indexOf(appKey) >= 0) return folders[i];
+    return null;
+  }
+  function saveFolders() { ls.set('gh.folders.v1', folders); }
 
   var apps = {};
   var shortcuts = [];
@@ -111,10 +136,9 @@
   }
   GH.toast = toast;
 
-  // Sound tiles (the radio, Asma al-Husna) show whether they are on.
+  // The radio's tile shows whether it is on.
   function soundOn(it) {
-    if (!GH.audio) return false;
-    return it.sound === 'radio' ? GH.audio.radioOn() : GH.audio.dhikrOn();
+    return !!GH.audio && GH.audio.radioOn();
   }
   if (GH.audio) {
     GH.audio.onChange(function () {
@@ -128,7 +152,7 @@
   var timeFmt = null;
   var dateFmt = null;
   try {
-    timeFmt = new Intl.DateTimeFormat(cfg.locale || undefined, { hour: 'numeric', minute: '2-digit' });
+    timeFmt = new Intl.DateTimeFormat(cfg.locale || undefined, { hour: 'numeric', minute: '2-digit', second: '2-digit' });
     dateFmt = new Intl.DateTimeFormat(cfg.locale || undefined, { weekday: 'long', day: 'numeric', month: 'long' });
   } catch (e) { /* very old engine: fallback below */ }
 
@@ -140,14 +164,14 @@
     if (timeFmt && timeFmt.formatToParts) {
       timeFmt.formatToParts(now).forEach(function (p) {
         if (p.type === 'dayPeriod') period = p.value.replace(/\./g, '').toLowerCase();
-        else if (p.type === 'hour' || p.type === 'minute' || (p.type === 'literal' && p.value.indexOf(':') >= 0)) main += p.value;
+        else if (p.type === 'hour' || p.type === 'minute' || p.type === 'second' || (p.type === 'literal' && p.value.indexOf(':') >= 0)) main += p.value;
       });
       var parts = {};
       dateFmt.formatToParts(now).forEach(function (p) { parts[p.type] = p.value; });
       dateText = [parts.weekday, parts.day, parts.month].join(' ');
     } else {
       var h = now.getHours();
-      main = ((h % 12) || 12) + ':' + ('0' + now.getMinutes()).slice(-2);
+      main = ((h % 12) || 12) + ':' + ('0' + now.getMinutes()).slice(-2) + ':' + ('0' + now.getSeconds()).slice(-2);
       period = h < 12 ? 'am' : 'pm';
       dateText = now.toDateString();
     }
@@ -181,21 +205,32 @@
     return inputDefs.slice().sort(function (a, b) { return rank(a) - rank(b); });
   }
 
+  // The tile for one app (or the radio), or null if it isn't installed or was removed.
+  function appItem(k) {
+    var d = defByKey[k];
+    if (!d || d.folder || removed.indexOf(k) >= 0) return null;
+    if (d.radio) return { kind: 'app', key: 'app:' + k, appKey: k, label: d.label, sound: 'radio', icon: d.icon || null };
+    var a = apps[k];
+    // Hidden apps come back from +, so without the photo service (no +)
+    // nothing stays hidden.
+    if (!a || (photoService && hidden.indexOf(k) >= 0)) return null;
+    return { kind: 'app', key: 'app:' + k, appKey: k, label: d.label, id: a.id, storeId: d.storeId,
+      icon: d.icon === false ? null : (d.icon || P.iconUrl(a.iconPath)) };
+  }
+
   function buildItems() {
     var list = [];
     orderedAppKeys().forEach(function (k) {
-      var sound = defByKey[k].radio ? 'radio' : defByKey[k].dhikr ? 'dhikr' : null;
-      if (sound) {
-        list.push({ kind: 'app', key: 'app:' + k, appKey: k, label: defByKey[k].label, sound: sound, icon: defByKey[k].icon || null });
+      if (defByKey[k].folder) {
+        var f = folderById(defByKey[k].folder);
+        if (!f) return;
+        list.push({ kind: 'app', folder: f.id, key: 'app:' + k, appKey: k, label: f.name, color: f.color,
+          members: f.apps.map(appItem).filter(Boolean) });
         return;
       }
-      var a = apps[k];
-      // Hidden apps come back from +, so without the photo service (no +)
-      // nothing stays hidden.
-      if (!a || (photoService && hidden.indexOf(k) >= 0)) return;
-      list.push({ kind: 'app', key: 'app:' + k, appKey: k, label: defByKey[k].label, id: a.id,
-        storeId: defByKey[k].storeId,
-        icon: defByKey[k].icon === false ? null : (defByKey[k].icon || P.iconUrl(a.iconPath)) });
+      if (folderOf(k)) return;                 // shown inside its folder
+      var it = appItem(k);
+      if (it) list.push(it);
     });
     orderedInputs().forEach(function (inp) {
       var k = 'in:' + inp.hdmi;
@@ -215,7 +250,8 @@
   }
 
   function signature(it) {
-    return [it.kind, it.label, it.icon || '', it.videoId || '', it.iconW || 0].join('|');
+    var folder = it.folder ? it.color + ':' + it.members.map(function (m) { return m.key + (m.icon ? '+' : ''); }).join(',') : '';
+    return [it.kind, it.label, it.icon || '', it.videoId || '', it.iconW || 0, folder].join('|');
   }
 
   function hueFor(seed) {
@@ -294,7 +330,28 @@
     var face = div('face');
     el.appendChild(face);
     var img;
-    if (it.kind === 'app') {
+    if (it.folder) {
+      // The folder's colour with the first four apps' icons, and its name.
+      el.classList.add('tile-folder');
+      face.style.backgroundColor = it.color;
+      var grid = div('folder-grid');
+      it.members.slice(0, 4).forEach(function (m) {
+        var cell = div('folder-cell');
+        var initial = String(m.label || '?').trim().charAt(0);
+        if (m.icon) {
+          var mi = new Image();
+          mi.alt = '';
+          mi.onerror = function () { mi.remove(); cell.textContent = initial; };
+          mi.src = m.icon;
+          cell.appendChild(mi);
+        } else {
+          cell.textContent = initial;
+        }
+        grid.appendChild(cell);
+      });
+      face.appendChild(grid);
+      face.appendChild(div('folder-name', it.label));
+    } else if (it.kind === 'app') {
       if (it.icon) {
         img = new Image();
         img.className = 'app-icon';
@@ -477,10 +534,11 @@
 
   function activate(it) {
     if (!it) return;
+    if (it.folder) { openFolder(it); return; }
     if (it.kind === 'add') { openPanel(); return; }
     if (it.sound) {
       if (!GH.audio) return;
-      var on = it.sound === 'radio' ? GH.audio.toggleRadio() : GH.audio.toggleDhikr();
+      var on = GH.audio.toggleRadio();
       toast((on ? 'تشغيل ' : 'إيقاف ') + it.label);
       return;
     }
@@ -507,36 +565,55 @@
     return items.filter(function (x) { return x.kind === 'web' || x.kind === 'youtube'; });
   }
 
-  function openMenu() {
-    var it = items[focus];
-    if (!it || it.kind === 'add') return;
-    var group = groupOf(it);
-    var gi = group.indexOf(it);
-    menuItems = [
-      { label: 'Move left', disabled: gi <= 0, run: function () { moveItem(it, -1); } },
-      { label: 'Move right', disabled: gi >= group.length - 1, run: function () { moveItem(it, 1); } },
-      it.kind === 'web' || it.kind === 'youtube' ? { label: 'Remove', run: function () { removeShortcut(it); } }
-        : photoService ? { label: 'Hide', run: function () { hideApp(it); } }
-        : null,                           // apps and inputs: no + to bring them back
-      { label: 'Cancel', run: function () {} }
-    ].filter(Boolean);
+  // A small list of choices above the dock (or the open folder); Back closes it
+  // and returns to wherever it was opened from.
+  var menuReturn = 'dock';
+  function showMenu(title, entries, cx) {
+    menuItems = entries.filter(Boolean);
     menuFocus = 0;
-    while (menuItems[menuFocus].disabled) menuFocus += 1;
+    while (menuFocus < menuItems.length - 1 && menuItems[menuFocus].disabled) menuFocus += 1;
     menu.textContent = '';
-    menu.appendChild(div('menu-title', it.label));
+    menu.appendChild(div('menu-title', title));
     menuItems.forEach(function (m) {
       var e = div('menu-item' + (m.disabled ? ' disabled' : ''), m.label);
       m.el = e;
       menu.appendChild(e);
     });
     renderMenuFocus();
-    var cx = layoutDock();
     var w = menu.offsetWidth || 340;
     menu.style.left = Math.round(clamp(cx - w / 2, 48, 1920 - 48 - w)) + 'px';
     menu.style.bottom = (DOCK_BOTTOM + dockHeight() + 18) + 'px';
+    if (mode !== 'menu') menuReturn = mode;
     mode = 'menu';
     menu.classList.add('open');
     dock.classList.add('dimmed');
+  }
+
+  function openMenu() {
+    var it = items[focus];
+    if (!it || it.kind === 'add') return;
+    var group = groupOf(it);
+    var gi = group.indexOf(it);
+    var fixed = FIXED.indexOf(it.appKey) >= 0;
+    var entries = [
+      { label: 'تحريك لليسار', disabled: gi <= 0, run: function () { moveItem(it, -1); } },
+      { label: 'تحريك لليمين', disabled: gi >= group.length - 1, run: function () { moveItem(it, 1); } }
+    ];
+    if (it.folder) {
+      entries.push({ label: 'تعديل الاسم واللون', run: function () { editFolder(folderById(it.folder)); } });
+      entries.push({ label: 'حذف المجلد (تبقى البرامج)', run: function () { deleteFolder(it.folder); } });
+    } else if (it.kind === 'app') {
+      entries.push({ label: 'إضافة إلى مجلد', run: function () { chooseFolder(it); } });
+      if (!fixed) entries.push({ label: 'إزالة من الشريط', run: function () { removeApp(it); } });
+      if (!fixed && it.id) entries.push({ label: 'حذف من التلفاز', run: function () { uninstallApp(it); } });
+    } else if (it.kind === 'web' || it.kind === 'youtube') {
+      entries.push({ label: 'Remove', run: function () { removeShortcut(it); } });
+    } else if (photoService) {
+      entries.push({ label: 'Hide', run: function () { hideApp(it); } });
+    }
+    if (removed.length) entries.push({ label: 'إرجاع المحذوفة (' + removed.length + ')', run: restoreRemoved });
+    entries.push({ label: 'إلغاء', run: function () {} });
+    showMenu(it.label, entries, layoutDock());
   }
 
   function renderMenuFocus() {
@@ -545,8 +622,242 @@
 
   function closeMenu() {
     menu.classList.remove('open');
+    mode = menuReturn;
+    menuReturn = 'dock';
+    if (mode === 'dock') dock.classList.remove('dimmed');
+  }
+
+  // ---------- folders ----------
+  function chooseFolder(it) {
+    var entries = folders.map(function (f) {
+      return { label: f.name, run: function () { addToFolder(f, it); } };
+    });
+    entries.push({ label: '+ مجلد جديد', run: function () {
+      editFolder(null, function (f) {
+        // The new folder takes the app's place in the dock.
+        var keys = orderedAppKeys().filter(function (k) { return k !== 'folder:' + f.id; });
+        keys.splice(Math.max(0, keys.indexOf(it.appKey)), 0, 'folder:' + f.id);
+        appOrder = keys;
+        ls.set('gh.appOrder', appOrder);
+        addToFolder(f, it);
+      });
+    } });
+    entries.push({ label: 'إلغاء', run: function () {} });
+    showMenu('إضافة ' + it.label + ' إلى', entries, layoutDock());
+  }
+
+  function addToFolder(f, it) {
+    folders.forEach(function (o) { o.apps = o.apps.filter(function (k) { return k !== it.appKey; }); });
+    f.apps.push(it.appKey);
+    saveFolders();
+    rebuildDock('app:folder:' + f.id);
+    toast('أُضيف ' + it.label + ' إلى ' + f.name);
+  }
+
+  function deleteFolder(id) {
+    var f = folderById(id);
+    folders = folders.filter(function (o) { return o.id !== id; });
+    defs = defs.filter(function (d) { return d.key !== 'folder:' + id; });
+    delete defByKey['folder:' + id];
+    saveFolders();
+    rebuildDock();
+    if (f) toast('حُذف مجلد ' + f.name + ' ورجعت برامجه إلى الشريط');
+  }
+
+  function takeOut(f, appKey) {
+    f.apps = f.apps.filter(function (k) { return k !== appKey; });
+    saveFolders();
+    rebuildDock();
+    if (mode === 'folder' || menuReturn === 'folder') renderFolder();
+  }
+
+  // The open folder: its apps in a row above the dock.
+  var fview = { el: $('folder-view'), f: null, items: [], focus: 0 };
+
+  function openFolder(it) {
+    var f = folderById(it.folder);
+    if (!f || !fview.el) return;
+    fview.f = f;
+    fview.focus = 0;
+    renderFolder();
+    mode = 'folder';
+    fview.el.classList.add('open');
+    dock.classList.add('dimmed');
+    label.classList.remove('on');
+  }
+
+  function renderFolder() {
+    var f = fview.f;
+    fview.items = f.apps.map(appItem).filter(Boolean);
+    fview.focus = clamp(fview.focus, 0, Math.max(0, fview.items.length - 1));
+    fview.el.textContent = '';
+    var head = div('fv-head');
+    head.style.backgroundColor = f.color;
+    head.appendChild(div('fv-name', f.name));
+    var n = fview.items.length;
+    var count = n === 1 ? 'برنامج واحد' : n === 2 ? 'برنامجان' : n <= 10 ? n + ' برامج' : n + ' برنامجًا';
+    head.appendChild(div('fv-count', n ? count + ' · رجوع للإغلاق' : 'فارغ · أضف البرامج من قائمة أي برنامج في الشريط'));
+    fview.el.appendChild(head);
+    var rowEl = div('fv-row');
+    fview.items.forEach(function (m, i) {
+      var wrap = div('fv-item');
+      var t = makeTile(m);
+      t.classList.toggle('focused', i === fview.focus);
+      wrap.appendChild(t);
+      wrap.appendChild(div('fv-label', m.label));
+      rowEl.appendChild(wrap);
+    });
+    fview.el.appendChild(rowEl);
+  }
+
+  function folderFocus(d) {
+    fview.focus = clamp(fview.focus + d, 0, Math.max(0, fview.items.length - 1));
+    Array.prototype.forEach.call(fview.el.querySelectorAll('.fv-item .tile'), function (t, i) {
+      t.classList.toggle('focused', i === fview.focus);
+    });
+  }
+
+  function closeFolder() {
+    fview.el.classList.remove('open');
     dock.classList.remove('dimmed');
     mode = 'dock';
+    setFocus(focus, true);
+  }
+
+  function launchFromFolder() {
+    var m = fview.items[fview.focus];
+    if (!m) return;
+    if (!m.sound) closeFolder();
+    activate(m);
+  }
+
+  function openFolderMenu() {
+    var m = fview.items[fview.focus];
+    if (!m) return;
+    var fixed = FIXED.indexOf(m.appKey) >= 0;
+    var f = fview.f;
+    showMenu(m.label, [
+      { label: 'إخراج من المجلد', run: function () { takeOut(f, m.appKey); } },
+      !fixed && m.id ? { label: 'حذف من التلفاز', run: function () { uninstallApp(m); } } : null,
+      { label: 'إلغاء', run: function () {} }
+    ], 960);
+  }
+
+  // Name and colour of a new or existing folder. The name field opens the TV's
+  // keyboard on OK; its Done (or Down) comes back to the colours.
+  var editor = { el: $('editor'), f: null, done: null, back: 'dock', row: 0, color: 0, btn: 0, input: null, swatches: [], buttons: [] };
+
+  function editFolder(f, done) {
+    var E = editor;
+    if (!E.el) return;
+    E.f = f;
+    E.done = done || null;
+    E.back = mode === 'menu' ? menuReturn : mode;
+    E.el.textContent = '';
+    E.el.appendChild(div('ed-title', f ? 'تعديل المجلد' : 'مجلد جديد'));
+    E.input = document.createElement('input');
+    E.input.type = 'text';
+    E.input.className = 'ed-input';
+    E.input.maxLength = 24;
+    E.input.placeholder = 'اسم المجلد';
+    E.input.value = f ? f.name : '';
+    E.el.appendChild(E.input);
+    E.el.appendChild(div('ed-hint', 'OK للكتابة · الأسهم لاختيار اللون'));
+    var sw = div('ed-colors');
+    E.swatches = FOLDER_COLORS.map(function (c) {
+      var s = div('ed-swatch');
+      s.style.backgroundColor = c;
+      sw.appendChild(s);
+      return s;
+    });
+    E.el.appendChild(sw);
+    var bs = div('ed-buttons');
+    E.buttons = ['حفظ', 'إلغاء'].map(function (t) { var b = div('ed-btn', t); bs.appendChild(b); return b; });
+    E.el.appendChild(bs);
+    E.color = Math.max(0, FOLDER_COLORS.indexOf(f ? f.color : FOLDER_COLORS[folders.length % FOLDER_COLORS.length]));
+    E.row = 0;
+    E.btn = 0;
+    mode = 'editor';
+    E.el.classList.add('open');
+    scrim.classList.add('open');
+    rawKeys(true);
+    renderEditor();
+  }
+
+  // The app reads OK itself (MainActivity.dispatchKeyEvent); the name field
+  // needs the real key presses so the TV's keyboard opens.
+  function rawKeys(on) { if (window.FireTV && window.FireTV.setRawKeys) window.FireTV.setRawKeys(on); }
+
+  function renderEditor() {
+    var E = editor;
+    E.input.classList.toggle('focused', E.row === 0);
+    E.swatches.forEach(function (s, i) {
+      s.classList.toggle('picked', i === E.color);
+      s.classList.toggle('focused', E.row === 1 && i === E.color);
+    });
+    E.buttons.forEach(function (b, i) { b.classList.toggle('focused', E.row === 2 && i === E.btn); });
+  }
+
+  function closeEditor(save) {
+    var E = editor;
+    E.input.blur();
+    E.el.classList.remove('open');
+    scrim.classList.remove('open');
+    rawKeys(false);
+    mode = E.back;
+    if (mode === 'dock') dock.classList.remove('dimmed');
+    if (!save) return;
+    var name = E.input.value.trim() || 'مجلد';
+    var color = FOLDER_COLORS[E.color];
+    if (E.f) {
+      E.f.name = name;
+      E.f.color = color;
+      if (defByKey['folder:' + E.f.id]) defByKey['folder:' + E.f.id].label = name;
+      saveFolders();
+      rebuildDock();
+      if (mode === 'folder') renderFolder();
+      toast('حُفظ مجلد ' + name);
+      return;
+    }
+    var nf = { id: 'f' + Date.now().toString(36), name: name, color: color, apps: [] };
+    folders.push(nf);
+    addDef(folderDef(nf));
+    saveFolders();
+    if (E.done) E.done(nf);
+    else rebuildDock();
+  }
+
+  function editorKey(e) {
+    var k = e.keyCode;
+    var E = editor;
+    if (document.activeElement === E.input) {
+      // Typing: letters, Left/Right and delete belong to the field.
+      if (k === KEY.ENTER || k === KEY.DOWN || k === KEY.ESC || k === KEY.BACK) {
+        e.preventDefault();
+        E.input.blur();
+        E.row = 1;
+        renderEditor();
+      }
+      return;
+    }
+    if (k === KEY.BACK || k === KEY.ESC) { e.preventDefault(); closeEditor(false); return; }
+    if ([KEY.LEFT, KEY.RIGHT, KEY.UP, KEY.DOWN, KEY.ENTER].indexOf(k) < 0) return;
+    e.preventDefault();
+    if (k === KEY.ENTER && e.repeat) return;
+    if (k === KEY.UP) E.row = Math.max(0, E.row - 1);
+    else if (k === KEY.DOWN) E.row = Math.min(2, E.row + 1);
+    else if (E.row === 0 && k === KEY.ENTER) { E.input.focus(); return; }
+    else if (E.row === 1 && k !== KEY.ENTER) E.color = clamp(E.color + (k === KEY.RIGHT ? 1 : -1), 0, FOLDER_COLORS.length - 1);
+    else if (E.row === 1) E.row = 2;
+    else if (E.row === 2 && k !== KEY.ENTER) E.btn = k === KEY.RIGHT ? 0 : 1;   // right-to-left: Save is on the right
+    else if (E.row === 2) { closeEditor(E.btn === 0); return; }
+    renderEditor();
+  }
+
+  // The TV asks for confirmation in its own window.
+  function uninstallApp(it) {
+    if (window.FireTV && window.FireTV.uninstall && window.FireTV.uninstall(it.id)) toast('أكّد حذف ' + it.label + ' في نافذة التلفاز');
+    else toast('تعذّر فتح نافذة الحذف');
   }
 
   function moveItem(it, dir) {
@@ -584,6 +895,24 @@
     });
   }
 
+  // Off the dock only: the app stays installed on the TV.
+  function removeApp(it) {
+    // The last tile stays: without one there is nothing to hold OK on to bring the others back.
+    if (items.filter(function (x) { return x.kind === 'app'; }).length <= 1) { toast('لا يمكن إزالة آخر برنامج في الشريط'); return; }
+    if (removed.indexOf(it.appKey) < 0) removed.push(it.appKey);
+    ls.set('gh.removed', removed);
+    rebuildDock();
+    toast('أُزيل ' + it.label + ' من الشريط · يرجع من «إرجاع المحذوفة» بالضغط المطوّل على OK', 4500);
+  }
+
+  function restoreRemoved() {
+    var n = removed.length;
+    removed = [];
+    ls.set('gh.removed', removed);
+    rebuildDock();
+    toast('أُرجع ' + n + (n === 1 ? ' برنامج' : ' برامج') + ' إلى الشريط');
+  }
+
   function hideApp(it) {
     if (hidden.indexOf(it.appKey) < 0) hidden.push(it.appKey);
     ls.set('gh.hidden', hidden);
@@ -615,7 +944,7 @@
     $('panel-pw-note').textContent = pw.note || '';
     var users = (st && st.photos ? st.photos.length : 0);
     var scs = shortcuts.length;
-    var bits = [bundled.length + ' nature photos', users + (users === 1 ? ' of your photos' : ' of yours'), scs + (scs === 1 ? ' shortcut' : ' shortcuts')];
+    var bits = [bundled.length + ' Trabzon and Istanbul photos', users + (users === 1 ? ' of your photos' : ' of yours'), scs + (scs === 1 ? ' shortcut' : ' shortcuts')];
     var free = storageText();
     if (free) bits.push(free);
     $('panel-stats').textContent = bits.join('  ·  ');
@@ -717,11 +1046,21 @@
   // ---------- keys ----------
   function onKeyDown(e) {
     var k = e.keyCode;
+    if (mode === 'editor') { editorKey(e); return; }
     if (k === KEY.BACK || k === KEY.ESC || (k === KEY.BACKSPACE && cfg.preview)) {
       e.preventDefault();
       if (mode === 'menu') closeMenu();
       else if (mode === 'panel') closePanel();
+      else if (mode === 'folder') closeFolder();
       return;                                   // at the top level Back does nothing
+    }
+    if (k === KEY.MENU) {                       // the same menu as holding OK
+      e.preventDefault();
+      if (e.repeat) return;
+      if (mode === 'dock') openMenu();
+      else if (mode === 'folder') openFolderMenu();
+      else if (mode === 'menu') closeMenu();
+      return;
     }
     if ([KEY.LEFT, KEY.RIGHT, KEY.UP, KEY.DOWN, KEY.ENTER].indexOf(k) < 0) return;
     e.preventDefault();
@@ -758,6 +1097,11 @@
       renderPanelFocus();
       return;
     }
+    if (mode === 'folder' && k !== KEY.ENTER) {
+      if (k === KEY.LEFT) folderFocus(-1);
+      else if (k === KEY.RIGHT) folderFocus(1);
+      return;
+    }
     if (k === KEY.LEFT) setFocus(focus - 1);
     else if (k === KEY.RIGHT) setFocus(focus + 1);
     else if (k === KEY.ENTER) {
@@ -767,10 +1111,11 @@
       clearTimeout(longTimer);
       longTimer = setTimeout(function () {
         longTimer = null;
-        if (!enterDown || mode !== 'dock') return;
+        if (!enterDown || (mode !== 'dock' && mode !== 'folder')) return;
         longFired = true;
         waitEnterRelease = true;
-        openMenu();
+        if (mode === 'folder') openFolderMenu();
+        else openMenu();
         // Normally the key-up clears this; the timer only covers a lost key-up.
         clearTimeout(releaseTimer);
         releaseTimer = setTimeout(function () { waitEnterRelease = false; }, 2500);
@@ -788,6 +1133,7 @@
       clearTimeout(longTimer);
       longTimer = null;
       if (!longFired && mode === 'dock') activate(items[focus]);
+      else if (!longFired && mode === 'folder') launchFromFolder();
     }
     longFired = false;
   }
@@ -895,8 +1241,21 @@
     });
   }
 
+  // New installs join the dock (autoapps.js); runs whenever this screen comes
+  // back, which is where you land after installing from Google Play.
+  function checkNewApps() {
+    if (!GH.autoApps) return Promise.resolve();
+    return P.listApps().then(function (list) {
+      var r = GH.autoApps(list, cfg.apps, autoState);
+      autoState = r.state;
+      ls.set('gh.autoApps.v1', autoState);
+      autoState.auto.forEach(addDef);
+      if (r.added.length) toast('أُضيف إلى الشريط: ' + r.added.join('، '), 4500);
+    });
+  }
+
   function resolveApps() {
-    return P.resolveApps(defs).then(function (found) {
+    return checkNewApps().then(function () { return P.resolveApps(defs); }).then(function (found) {
       apps = found;
       if (found.youtube) P.setYouTubeId(found.youtube.id);
       ls.set('gh.apps.v1', { at: Date.now(), apps: found });

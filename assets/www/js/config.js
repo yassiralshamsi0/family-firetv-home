@@ -47,11 +47,11 @@
     photoIntervalMs: 45000,
     fadeMs: 1600,
     kenBurnsScale: 1.06,
-    clockEveryMs: 15000,
+    clockEveryMs: 1000,          // the clock shows seconds
     pollEveryMs: 20000,
     longPressMs: 700,
     // Date and time format, e.g. 'en-AU', 'en-GB', 'en-US'. Empty: the TV's own.
-    locale: '',
+    locale: 'ar-AE-u-nu-latn',   // Arabic names with 0-9 digits, for the digital clock
 
     // How YouTube shortcuts are handed to the YouTube app. 'uri' sends
     // https://www.youtube.com/watch?v=...; 'payload' is Samsung's Smart Hub
@@ -114,39 +114,25 @@
     uae: {
       enabled: true,
       newsUrl: 'https://news.google.com/rss/search?q=%D8%A7%D9%84%D8%A5%D9%85%D8%A7%D8%B1%D8%A7%D8%AA%20when%3A1d&hl=ar&gl=AE&ceid=AE:ar',
+      // Holiday news of the past week, for dates set after the moon sighting.
+      holidayUrl: 'https://news.google.com/rss/search?q=' + encodeURIComponent('(إجازة OR عطلة) الإمارات when:7d') + '&hl=ar&gl=AE&ceid=AE:ar',
       upcoming: 3,               // occasions listed under the next one
       rotateMs: 10000,
-      refreshMs: 15 * 60 * 1000
+      refreshMs: 15 * 60 * 1000,
+      holidayRefreshMs: 60 * 60 * 1000
     },
 
     // Sound (js/audio.js). Files are under app/audio; see audio/CREDITS.txt.
     audio: {
       // Sharjah Holy Quran Radio, started and stopped from its dock tile.
       radio: { url: 'https://l3.itworkscdn.net/smcquranlive/quranradiolive/icecast.audio', volume: 1 },
-      // Asma al-Husna in several voices, played softly one after another
-      // without end; stops for the radio, the prayer-time takbir (resuming
-      // resumeMinutes later) and other apps. The first is in the app; the
-      // others stream from the Internet Archive and are skipped when offline.
-      dhikr: {
-        enabled: true,
-        files: [
-          'audio/asma-alhusna.mp3',
-          'https://archive.org/download/AsmaulHusna99/Asmaul%20Husna1.mp3',
-          'https://archive.org/download/AsmaulHusna99/Asmaul%20Husna2.mp3',
-          'https://archive.org/download/128-kbps_202302/' + encodeURIComponent('تمتع بأسماء الله الحسنى سكينة و راحة وشفاء (128 kbps).mp3'),
-          'https://archive.org/download/AsmaulHusna99/Asmaul%20Husna4.mp3',
-          'https://archive.org/download/AsmaulHusna99/Asmaul%20Husna5.mp3'
-        ],
-        volume: 0.12,
-        resumeMinutes: 10
-      },
       // At each prayer time: the adhan's opening takbir only (up to takbirEnd
       // seconds) with a notice on screen until it ends.
       adhan: { enabled: true, file: 'audio/adhan.mp3', takbirEnd: 10.9, volume: 0.9 }
     },
 
     // Off: the clock, prayer times and dock always stay on screen.
-    ambient: { enabled: false, afterMs: 3 * 60 * 1000 },
+    ambient: { enabled: true, afterMs: 3 * 60 * 1000 },
 
     // Evening dimming of the photos, by the TV's clock (24-hour).
     night: { enabled: true, from: '20:00', to: '06:00' },
@@ -179,10 +165,12 @@
       { key: 'iptv', label: 'IPTV', ids: ['com.nst.iptvsmarterstvbox'], names: ['^iptv smarters'] },
       // Not an app: OK starts and stops the radio stream in `audio.radio`.
       { key: 'quran', label: 'إذاعة القرآن الكريم', radio: true, icon: 'img/quran-radio.svg', ids: [], names: [] },
-      // Not an app either: OK turns Asma al-Husna (`audio.dhikr`) on and off.
-      { key: 'asma', label: 'أسماء الله الحسنى', dhikr: true, icon: 'img/asma.svg', ids: [], names: [] },
       { key: 'gcc', label: 'GCC', ids: ['com.streamvault.app.debug'],
         names: ['^gcc$', '^streamvault'] },
+      { key: 'play', label: 'Google Play', ids: ['com.android.vending'], names: ['^google play store$', '^play store$'] },
+      { key: 'files', label: 'مدير الملفات',
+        ids: ['com.alphainventor.filemanager', 'com.google.android.apps.nbu.files', 'com.android.documentsui'],
+        names: ['file manager', '^files$'] },
       { key: 'settings', label: 'الإعدادات', icon: 'img/settings.svg',
         ids: ['com.android.tv.settings', 'com.amazon.tv.settings.v2', 'com.android.settings'], names: [] },
       { key: 'browser', label: 'Internet', ids: ['com.amazon.cloud9', 'com.android.chrome'],

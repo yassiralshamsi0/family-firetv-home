@@ -32,7 +32,6 @@ class RemoteServer extends Thread {
         String state(boolean withDock);          // JSON for /api/state (?lite skips the icons)
         boolean launch(String pkg);
         void radio();
-        void dhikr();
         boolean key(String name);
         void home();
         void volume(String how);
@@ -114,7 +113,6 @@ class RemoteServer extends Thread {
         switch (path) {
             case "/api/launch": ok = actions.launch(a.get("id")); break;
             case "/api/radio": actions.radio(); break;
-            case "/api/dhikr": actions.dhikr(); break;
             case "/api/key": ok = actions.key(a.get("k")); break;
             case "/api/home": actions.home(); break;
             case "/api/volume": actions.volume(a.get("d")); break;

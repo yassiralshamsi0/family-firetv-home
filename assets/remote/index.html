@@ -46,9 +46,8 @@
   section { margin-bottom: 18px; }
   h2 { font-size: 14px; font-weight: 600; color: var(--text-2); margin: 0 0 10px; }
 
-  /* Radio and Asma al-Husna */
-  .sound + .sound { margin-top: 10px; }
-  #radio, #dhikr {
+  /* Radio */
+  #radio {
     width: 100%;
     display: flex;
     align-items: center;
@@ -80,8 +79,6 @@
   .sound.on .ic::after { left: 17px; top: 17px; width: 18px; height: 18px; border: 0; border-radius: 3px; background: #fff; }
   .sound .t { font-size: 18px; font-weight: 700; color: var(--gold); }
   .sound .s { font-size: 13px; color: rgba(255, 255, 255, 0.75); margin-top: 2px; }
-
-  #dhikr { background: linear-gradient(135deg, #2b3f7a, #141f45); }
 
   /* D-pad */
   .pad {
@@ -150,10 +147,6 @@
       <span class="ic"></span>
       <span><div class="t">إذاعة القرآن الكريم</div><div class="s" id="radio-s">الشارقة · اضغط للتشغيل</div></span>
     </button>
-    <button id="dhikr" class="sound">
-      <span class="ic"></span>
-      <span><div class="t">أسماء الله الحسنى</div><div class="s" id="dhikr-s">بصوت خفيف · اضغط للتشغيل</div></span>
-    </button>
   </section>
 
   <section>
@@ -171,6 +164,7 @@
     </div>
     <div class="row">
       <button id="home">🏠 عائلتي</button>
+      <button data-k="menu">☰ قائمة</button>
       <button data-k="back">↩ رجوع</button>
     </div>
     <div class="note">الأسهم تشتغل في شاشة «عائلتي» فقط. داخل Netflix وYouTube استخدم ريموت التلفزيون.</div>
@@ -200,6 +194,13 @@
   var KEY = 'remote.pin';
   var pin = '';
   try { pin = localStorage.getItem(KEY) || ''; } catch (e) { /* private mode */ }
+  // Opened from the QR code on the TV: the code comes in the #fragment.
+  var fromQr = /[#&]pin=(\d{4})/.exec(location.hash);
+  if (fromQr) {
+    pin = fromQr[1];
+    try { localStorage.setItem(KEY, pin); } catch (e) { /* not kept */ }
+    if (history.replaceState) history.replaceState(null, '', location.pathname);
+  }
   var toastTimer = null;
 
   function toast(t) {
@@ -231,9 +232,6 @@
     $('tv').textContent = (s.name || 'التلفزيون') + (s.shown ? ' · شاشة عائلتي ظاهرة' : ' · تطبيق آخر مفتوح');
     $('radio').classList.toggle('on', !!s.radio);
     $('radio-s').textContent = s.radio ? 'الشارقة · تعمل الآن، اضغط للإيقاف' : 'الشارقة · اضغط للتشغيل';
-    $('dhikr').classList.toggle('on', !!s.dhikr);
-    $('dhikr-s').textContent = !s.dhikr ? 'بصوت خفيف · اضغط للتشغيل'
-      : s.radio ? 'مفعّلة · تعود بعد إيقاف الإذاعة' : 'تعمل الآن، اضغط للإيقاف';
   }
 
   function icon(src) {
@@ -300,9 +298,6 @@
 
   $('radio').onclick = function () {
     api('radio', {}, true).then(function () { setTimeout(poll, 800); });
-  };
-  $('dhikr').onclick = function () {
-    api('dhikr', {}, true).then(function () { setTimeout(poll, 800); });
   };
   $('home').onclick = function () { api('home', {}, true).then(function () { toast('عائلتي'); setTimeout(poll, 800); }); };
 

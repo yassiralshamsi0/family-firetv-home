@@ -15,14 +15,27 @@
   function later(cb, v) { if (cb) setTimeout(function () { cb(v); }, 0); }
   function error(name, msg) { var e = new Error(msg); e.name = name; return e; }
 
-  // Where the phone remote is (RemoteServer.java), bottom right; the address
-  // can change, so it is checked again now and then.
+  // Where the phone remote is (RemoteServer.java), bottom right, as a QR code
+  // only, that opens it already signed in (the code rides in the #fragment,
+  // which the browser keeps to itself). The address is written out only if no
+  // code could be made. It can change, so it is checked again now and then.
+  var shownLink = '';
   function showRemote() {
     var box = document.getElementById('remote-hint');
     if (!box || !B.remoteInfo) return;
     var r = {};
     try { r = JSON.parse(B.remoteInfo()); } catch (e) { /* none */ }
-    box.textContent = r.url ? 'ريموت الجوال: http://' + r.url + '  ·  الرمز ' + r.pin : '';
+    var link = r.url ? 'http://' + r.url + '/#pin=' + r.pin : '';
+    if (link === shownLink) return;
+    shownLink = link;
+    box.textContent = '';
+    if (!link) return;
+    var qr = window.GH && GH.qrCanvas ? GH.qrCanvas(link, 4) : null;
+    if (qr) { qr.className = 'remote-qr'; box.appendChild(qr); return; }
+    var text = document.createElement('div');
+    text.className = 'remote-text';
+    text.textContent = 'ريموت الجوال: http://' + r.url + '  ·  الرمز ' + r.pin;
+    box.appendChild(text);
   }
   document.addEventListener('DOMContentLoaded', showRemote);
   setInterval(showRemote, 5 * 60000);

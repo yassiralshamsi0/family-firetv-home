@@ -21,6 +21,13 @@ $env:Path = "$jdk\bin;$env:Path"
 
 $root = $PSScriptRoot
 $out  = Join-Path $root 'build'
+
+# The medicine schedule is personal and not in git: start from the example.
+$med = Join-Path $root 'assets\www\medicine.json'
+if (-not (Test-Path $med)) {
+  Copy-Item (Join-Path $root 'docs\medicine.example.json') $med
+  Write-Output "Made assets\www\medicine.json from docs\medicine.example.json - put your own times in it."
+}
 if (Test-Path $out) { Remove-Item $out -Recurse -Force }
 New-Item -ItemType Directory -Force "$out\res", "$out\classes", "$out\dex" | Out-Null
 

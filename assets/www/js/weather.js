@@ -215,13 +215,13 @@
     }
     document.getElementById('wx-now-text').textContent = parts.join('  ·  ');
 
-    // The next 7 days.
+    // Today, marked, and the 6 days after it.
     var row = document.getElementById('wx-days');
     row.textContent = '';
     var rain = d.precipitation_probability_max || [];
-    for (var i = i0 + 1; i < d.time.length && i <= i0 + 7; i++) {
-      var day = el('div', 'wx-day');
-      day.appendChild(el('div', 'wx-dname', weekday(String(d.time[i]))));
+    for (var i = i0; i < d.time.length && i < i0 + 7; i++) {
+      var day = el('div', i === i0 ? 'wx-day today' : 'wx-day');
+      day.appendChild(el('div', 'wx-dname', i === i0 ? 'اليوم' : weekday(String(d.time[i]))));
       var ic = el('div', 'wx-icon');
       ic.innerHTML = iconSvg(info(d.weather_code[i])[2], false);
       day.appendChild(ic);

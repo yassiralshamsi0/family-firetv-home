@@ -119,8 +119,9 @@
   var foot = el('div', 'pr-foot', cfg.place ? 'مواقيت الصلاة · ' + cfg.place : 'مواقيت الصلاة');
   card.appendChild(cols);
   card.appendChild(foot);
-  root.appendChild(head);
-  root.appendChild(card);
+  // Only the table is shown, under the weather; the red cell marks the next
+  // prayer, so the "next prayer in ..." line is no longer put on screen.
+  (document.getElementById('prayer-table') || root).appendChild(card);
 
   var dayKey = '';
   var today = [];
